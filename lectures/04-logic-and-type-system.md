@@ -252,10 +252,119 @@ TODO 介绍 Polya 的书
 
 TODO application v.s. composition。
 
-TODO forth 以及基于栈的语言。
+TODO Forth 以及基于栈的语言。
 
-# 推理规则
+# 类型检查
 
-## 推理规则 与 类型检查算法
+我们已经明白了 **程序就是证明**，**命题就是类型**。
 
-TODO
+还有一个 **Bidirectional type checking** 技巧，
+可以让我们把逻辑中的推理规则，
+转化为类型系统中的类型检查算法（类型检查函数）。
+
+当用纯粹的前缀表达式来表示断言（judgment）时，
+我们给了断言一个名字叫 `check`。
+
+Bidirectional type checking 就在于，
+断言应该被分为两类，一类是 `check` 另一类是 `infer`。
+
+考虑 `apply` 这条推演规则
+
+```
+|- f: (-> A B)
+|- x: A
+----------- apply
+|- (f x): B
+```
+
+- 我们想要检查 `(f x)` 的类型为 `B`；
+- 我们必须能够推导出 `f` 的类型为 `(-> A B)`；
+- 如果我们能够导出出 `f` 的类型，那么我们就也能推导出 `(f x)` 的类型；
+- Thus we can do infer for the rule of function application.
+
+``` js
+[check] env + (x : A) |- e : B
+------------
+[check] env |- { x => e } : { A -> B }
+```
+
+we can not possibly infer the type of a bound variable `x`.
+Thus we do check for the rule of function abstraction.
+
+Function abstraction is the constructor of function type.
+Function application is the eliminator of function type.
+
+Since the rules about function are core of type systems,
+we might propagate the property "we need to check instead of infer"
+to all rules about constructor.
+
+We only want to implementation check,
+but we sometimes need infer,
+because we need to infer the type of target of elimination rules,
+because the target might be a variable.
+
+For elimination rules the pattern is,
+
+``` js
+[infer] premise about target
+[check] premise
+[check] premise
+[check] ...
+----------
+[infer] conclusion
+```
+
+For construction rules the pattern is,
+
+``` js
+[check] premise
+[check] premise
+[check] ...
+----------
+[check] conclusion
+```
+
+We can also just provide enough information in the syntax.
+for example, using typed bound variable,
+we can infer function abstraction.
+
+``` js
+[infer] env + (x : A) |- e : B
+------------
+[infer] env |- { x : A => e } : { A -> B }
+```
+
+Note that, we do not need to annotate the return type of function.
+
+The rule of dependent function application
+
+``` js
+[infer] env |- f : { x : A -> B } @ env1
+[check] env |- a : A
+[meta] eval(env1 + (x = a), B) == T
+------------
+[infer] env |- f(a) : T
+```
+
+About the variance between premise and conclusion in inference rule
+
+``` js
+premise
+----------
+conclusion
+```
+
+is like function type `premise -> conclusion`.
+
+``` js
+[check] premise
+----------
+[infer] conclusion
+```
+
+which can be read as,
+if we can implement check for premise,
+we can implement infer for conclusion.
+
+is like dependent function type `check_t(premise) -> infer_t(conclusion)`,
+where `infer_t` is a subtype of `check_t`.

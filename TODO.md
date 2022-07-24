@@ -1,2 +1,1 @@
-- note about two inference rules
 - code examples for implementing inference rules
