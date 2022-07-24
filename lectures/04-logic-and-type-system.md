@@ -258,11 +258,37 @@ TODO 归纳推理是不完全的推理。
 
 TODO 和情推理是关于「猜测」的推理。
 
-TODO 介绍 Polya 的书
+TODO 介绍 Polya 的书。
 
 ## 两种语法风格
 
-TODO application v.s. composition。
+TODO application v.s. composition
+
+TODO natural deduction v.s. sequent calculus
+
+空格代表函数作用：
+
+```
+f: A -> B
+x: A
+-----------
+f x: B
+```
+
+空格代表函数复合：
+
+```
+f: A -> B
+g: B -> C
+-----------
+f g: A -> C
+```
+
+```
+swap: A B -> B A
+dup: A -> A A
+drop: A ->
+```
 
 TODO Forth 以及基于栈的语言。
 
