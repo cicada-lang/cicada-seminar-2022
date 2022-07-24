@@ -65,11 +65,11 @@ date: 2022-07-24
 都可以观察到「到早晨了」这个结论，
 那么我们所使用的推理规则就是有效的。
 
-皮尔士所给出的定义，可以看是解释逻辑表达式的语义，
+皮尔士所给出的定义，可以看是逻辑表达式的语义，
 或者说，是我们（像一个解释器一样）解释逻辑表达式的方式。
 
 - 注意，「鸟在叫」并不是「到早晨了」的原因，
-  这二者之间有很强的相关性，这个相关性足以让我们相信大前提。
+  这二者之间有很强的相关性，这个相关性足以让我们相信规则。
 
   想要获得因果关系，我们必须有一个「模型」，
   或者说我们必须对「鸟」与「早晨」有更系统的知识。
@@ -144,39 +144,39 @@ x: A
 - `ctx` 是 "context" 的缩写，包含了我们当前已知的一系列假设。
 - `ctx |- x: A` 是一个完整的断言。
 
-上面提到的 `apply` 推演规则，是逻辑的核心，应该改写为：
+上面提到的 `apply` 推理规则，是逻辑的核心，应该改写为：
 
 ```
-|- f: (-> A B)
-|- x: A
------------ apply
-|- (f x): B
+ctx |- f: (-> A B)
+ctx |- x: A
+---------------- apply
+ctx |- (f x): B
 ```
 
-在此之外还有一个看似平凡的推演规则 `lambda`，
+在此之外还有一个看似平凡的推理规则 `lambda`，
 这个推演就是说，带有 `ctx` 的断言，可以被转化为不带 `ctx` 的断言：
 
 ```
-x: A |- b: B
------------------------------ lambda
-|- (lambda (x) b): (-> A B)
+ctx, x: A |- b: B
+-------------------------------- lambda
+ctx |- (lambda (x) b): (-> A B)
 ```
 
-上面两个推演规则都是需要前提的，
-还有一个不需要前提的推演规则 `variable`：
+上面两个推理规则都是需要前提的，
+还有一个不需要前提的推理规则 `variable`：
 
 ```
--------------- variable
-x: A |- x: A
+------------------- variable
+ctx, x: A |- x: A
 ```
 
 ## 证明的例子
 
-想要证明命题 `(-> A B A)`：
+想要证明命题 `(-> A B A)`，它是 `(-> A (-> B A))` 的缩写：
 
 ```
 x: A, y: B |- x: A
-------------------
+--------------------
 x: A |- (lambda (y) x): (-> B A)
 --------------------------
 |- (lambda (x y) x): (-> A B A)
@@ -187,13 +187,14 @@ x: A |- (lambda (y) x): (-> B A)
 
 ```
 (check ((x A) (y B)) x A)
-------------------
+--------------------------
 (check ((x A)) (lambda (y) x) (-> B A))
 --------------------------
 (check () (lambda (x y) x) (-> A B A))
 ```
 
-想要证明命题 `(-> (-> A B C) (-> A B) A C)`：
+想要证明命题 `(-> (-> A B C) (-> A B) A C)`，
+它是 `(-> (-> A B C) (-> A B) (-> A C))` 的缩写：
 
 ```
 f: (-> A B C), g: (-> A B), x: A |- (f x (g x)): C
@@ -205,13 +206,17 @@ f: (-> A B C) |- (lambda (x g) (f x (g x))): (-> (-> A B) A C)
 |- (lambda (f g x) (f x (g x))): (-> (-> A B C) (-> A B) A C)
 ```
 
+- **练习** 上面的第一步省略了很多 `apply` 的步骤，
+  如何设计良好的语法来详细表达这些步骤？
+
 纯粹的前缀表达式：
 
 ```
 (check ((f (-> A B C))
         (g (-> A B))
         (x A))
-  (f x (g x)) C)
+  (f x (g x))
+  C)
 ----------------------------------------------------
 (check ((f (-> A B C))
         (g (-> A B)))
@@ -231,12 +236,19 @@ f: (-> A B C) |- (lambda (x g) (f x (g x))): (-> (-> A B) A C)
 
 我们发现用来记录证明的语法，就是函数式编程的语法。
 
-lambda 演算中的每个表达式，就对应于一个推演规则：
+Lambda 演算中的每个表达式，就对应于一个推理规则：
+
 - `variable` 在 context 中查找变元的类型；
 - `lambda` 将 context 中的绑定的变元与其类型，记录到表达式中；
-- `apply` 逻辑的核心推演规则，对应于函数作用。
+- `apply` 逻辑的核心推理规则，对应于函数作用。
 
-所以 **程序就是证明**，**命题就是类型**。
+所以 **程序即证明**，**命题即类型**。
+
+> Program as proof, proposition as type.
+
+这样我们就把逻辑与编程，综合成立一个新的学科，叫类型论（type theory）。
+
+类型论的基本原则就是，同时考虑 命题的表达式 与 证明的表达式。
 
 ## 归纳推理 与 合情推理
 
@@ -268,7 +280,7 @@ TODO Forth 以及基于栈的语言。
 Bidirectional type checking 就在于，
 断言应该被分为两类，一类是 `check` 另一类是 `infer`。
 
-考虑 `apply` 这条推演规则
+考虑 `apply` 这条推理规则
 
 ```
 |- f: (-> A B)
@@ -282,7 +294,7 @@ Bidirectional type checking 就在于，
 - 如果我们能够导出出 `f` 的类型，那么我们就也能推导出 `(f x)` 的类型；
 - Thus we can do infer for the rule of function application.
 
-``` js
+```js
 [check] env + (x : A) |- e : B
 ------------
 [check] env |- { x => e } : { A -> B }
@@ -305,7 +317,7 @@ because the target might be a variable.
 
 For elimination rules the pattern is,
 
-``` js
+```js
 [infer] premise about target
 [check] premise
 [check] premise
@@ -316,7 +328,7 @@ For elimination rules the pattern is,
 
 For construction rules the pattern is,
 
-``` js
+```js
 [check] premise
 [check] premise
 [check] ...
@@ -328,7 +340,7 @@ We can also just provide enough information in the syntax.
 for example, using typed bound variable,
 we can infer function abstraction.
 
-``` js
+```js
 [infer] env + (x : A) |- e : B
 ------------
 [infer] env |- { x : A => e } : { A -> B }
@@ -338,7 +350,7 @@ Note that, we do not need to annotate the return type of function.
 
 The rule of dependent function application
 
-``` js
+```js
 [infer] env |- f : { x : A -> B } @ env1
 [check] env |- a : A
 [meta] eval(env1 + (x = a), B) == T
@@ -348,7 +360,7 @@ The rule of dependent function application
 
 About the variance between premise and conclusion in inference rule
 
-``` js
+```js
 premise
 ----------
 conclusion
@@ -356,7 +368,7 @@ conclusion
 
 is like function type `premise -> conclusion`.
 
-``` js
+```js
 [check] premise
 ----------
 [infer] conclusion
