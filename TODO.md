@@ -1,2 +1,2 @@
-- 04-logic-and-type-system.md -- slideshow
-- 04-logic-and-type-system.md -- code examples
+- note about two inference rules
+- code examples for implementing inference rules
