@@ -1,1 +1,0 @@
-- code examples for implementing inference rules
