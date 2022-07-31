@@ -340,7 +340,7 @@ class Atom extends Type {
   name: string;
 }
 class Arrow extends Type {
-  art_t: Type;
+  arg_t: Type;
   ret_t: Type;
 }
 ```
@@ -398,6 +398,8 @@ ctx |- (f x): B
 - 我们必须能够推导出 `f` 的类型为 `(-> A B)`；
 - 如果我们能够推导出 `f` 的类型，那么我们就也能推导出 `(f x)` 的类型。
 
+TODO 也可以先从 `x` 推导出 `A`。
+
 由此，我们发现，对于 `apply` 这条推理规则，
 我们不光可以实现 `check`，还可以实现一个更强的函数 `infer`。
 
@@ -429,6 +431,17 @@ infer(ctx: Ctx, exp: Exps.Ap): Type {
 }
 ```
 
+上面的推理规则应该改写为：
+
+- 注意，我们引入了一个新的叫做 `infer` 断言。
+
+```
+(infer ctx f) => (-> A B)
+(check ctx x A)
+--------------------- apply
+(infer ctx (f x)) => B
+```
+
 再考虑 `variable` 这条推理规则：
 
 ```
@@ -449,7 +462,7 @@ ctx, x: A |- x: A
 (check ctx x A)
 ```
 
-显然对于 `variable` 我们不光可以实现 `check`，也可以实现 `infer`：
+显然对于 `variable` 我们也是不光可以实现 `check`，而且可以实现 `infer`：
 
 ```typescript
 check(ctx: Ctx, exp: Exps.Var, t: Type): void {
@@ -478,17 +491,20 @@ ctx |- (lambda (x) b): (-> A B)
 (check ctx (lambda (x) b) (-> A B))
 ```
 
-我差点儿以为我可以一路把 `infer` 实现下去，
-但是这里想法破灭了。
+我差点儿以为我可以一路把 `infer` 实现下去，但是这里想法破灭了。
 
 我们不可能从 `(lambda (x) b)` 推导出 `(-> A B)` 中的 `A`。
+
+```
+(infer ctx (lambda (x) b)) => (-> A B)
+```
 
 - 假设我们只用表达式自身所携带的信息，
   外加 `ctx` 中的信息（这些都算是局部信息），
   来实现 `infer`。
 
-- 假设我们不能给 `(lambda (x) a)` 做类型标注（type annotation）
-  而写成 `(lambda ((x A)) a)`。
+- 假设我们不想给 `(lambda (x) b)` 做类型标注（type annotation）
+  而写成 `(lambda ((x A)) b)`。
 
   - 不带类型标注的 Lambda 演算，叫做「Curry 风格」；
   - 带有类型标注的 Lambda 演算，叫做「Church 风格」。
@@ -527,6 +543,12 @@ elimination rule 的一般模式是：
 (infer) conclusion
 ```
 
+```
+(infer ctx target) => (Pair A D)
+--------------------------------
+(infer ctx (car target)) => A
+```
+
 construction rule（或称 introduction rule）的一般模式是：
 
 ```
@@ -552,6 +574,10 @@ then we can infer function abstraction.
 Note that, we do not need to annotate the return type of function,
 we only need to annotate the argument type.
 
+TODO 为什么我们的语言不用 Church 风格？
+
+- 只是为了省略一部分类型声明吗？
+
 ### 未来会用到的推广
 
 回顾一下我们所实现的类型检查函数 `check` 与 `infer`。
@@ -573,6 +599,8 @@ we only need to annotate the argument type.
 
 逻辑中的推理规则，都是声明式的（declarative）关系（relation），
 或者说是谓词（predicate）。
+
+TODO relation v.s. function
 
 - 推理规则是可以在逻辑式编程语言中，用关系来实现的。
   当用逻辑式语言来实现推理规则时，
@@ -597,3 +625,21 @@ we only need to annotate the argument type.
 | elimination rule  | data eliminator  | `infer`        | `Ap`     |
 
 TODO 关于 关系 与 函数，以及函数的单值性。
+
+```
+f: (A) -> B
+x = y => f(x) = f(y) // 单值（函数的定义）
+
+x != y => f(x) != f(y) // 单调
+
+f(x) = x^2
+
+check(ctx, exp, t)
+infer(ctx, exp) => t
+
+add(x: Int, y: Int, sum: Int)
+
+x1 = x2
+y1 = y2
+add(x1, y1) = add(x2, y2)
+```
