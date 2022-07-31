@@ -154,7 +154,7 @@ ctx |- (f x): B
 ```
 
 在此之外还有一个看似平凡的推理规则 `lambda`，
-这个推演就是说，带有 `ctx` 的断言，可以被转化为不带 `ctx` 的断言：
+这个推理就是说，带有 `ctx` 的断言，可以被转化为不带 `ctx` 的断言：
 
 ```
 ctx, x: A |- b: B
@@ -172,7 +172,11 @@ ctx, x: A |- x: A
 
 ## 证明的例子
 
-想要证明命题 `(-> A B A)`，它是 `(-> A (-> B A))` 的缩写：
+**命题 K** `(-> A B A)`
+
+- 它是 `(-> A (-> B A))` 的缩写。
+
+证明：
 
 ```
 x: A, y: B |- x: A
@@ -182,19 +186,11 @@ x: A |- (lambda (y) x): (-> B A)
 |- (lambda (x y) x): (-> A B A)
 ```
 
-也可以把断言 `ctx |- x: A` 命名为 `check`，
-然后用纯粹的前缀表达式：
+**命题 S** `(-> (-> A B C) (-> A B) A C)`
 
-```
-(check ((x A) (y B)) x A)
---------------------------
-(check ((x A)) (lambda (y) x) (-> B A))
---------------------------
-(check () (lambda (x y) x) (-> A B A))
-```
+- 它是 `(-> (-> A B C) (-> A B) (-> A C))` 的缩写。
 
-想要证明命题 `(-> (-> A B C) (-> A B) A C)`，
-它是 `(-> (-> A B C) (-> A B) (-> A C))` 的缩写：
+证明：
 
 ```
 f: (-> A B C), g: (-> A B), x: A |- (f x (g x)): C
@@ -209,28 +205,7 @@ f: (-> A B C) |- (lambda (x g) (f x (g x))): (-> (-> A B) A C)
 - **练习** 上面的第一步省略了很多 `apply` 的步骤，
   如何设计良好的语法来详细表达这些步骤？
 
-纯粹的前缀表达式：
-
-```
-(check ((f (-> A B C))
-        (g (-> A B))
-        (x A))
-  (f x (g x))
-  C)
-----------------------------------------------------
-(check ((f (-> A B C))
-        (g (-> A B)))
-  (lambda (x) (f x (g x)))
-  (-> A C))
----------------------------------------------------------
-(check ((f (-> A B C)))
-  (lambda (g x) (f x (g x)))
-  (-> (-> A B) (-> A C)))
-----------------------------------------------------------
-(check ()
-  (lambda (f g x) (f x (g x)))
-  (-> (-> A B C) (-> A B) A C))
-```
+- 上面的 `K` 与 `S` 来自[组合子演算](https://en.wikipedia.org/wiki/SKI_combinator_calculus)。
 
 ## 结论
 
@@ -296,35 +271,155 @@ TODO Forth 以及基于栈的语言。
 
 我们已经明白了 **程序就是证明**，**命题就是类型**。
 
-还有一个 **Bidirectional type checking** 技巧，
-可以让我们把逻辑中的推理规则，
-转化为类型系统中的类型检查算法（类型检查函数）。
+因此 **类型检查的过程，就是检查证明是否正确的过程**。
 
-当用纯粹的前缀表达式来表示断言（judgment）时，
-我们给了断言一个名字叫 `check`。
+我们已经明白如何实现解释器了，
+现在我们想要要实现类型检查器。
 
-Bidirectional type checking 就在于，
-断言应该被分为两类，一类是 `check` 另一类是 `infer`。
+首先把断言 `ctx |- x: A` 命名为 `check`，
+然后用纯粹的前缀表达式，写为 `(check ctx x A)`。
 
-考虑 `apply` 这条推理规则
+为了熟悉一下用前缀表达式所写的断言，
+我们重复上面的两个证明如下：
+
+**命题 K** `(-> A B A)`
+
+证明：
 
 ```
-|- f: (-> A B)
-|- x: A
------------ apply
-|- (f x): B
+(check ((x A) (y B)) x A)
+--------------------------
+(check ((x A)) (lambda (y) x) (-> B A))
+--------------------------
+(check () (lambda (x y) x) (-> A B A))
+```
+
+**命题 S** `(-> (-> A B C) (-> A B) A C)`
+
+证明：
+
+```
+(check ((f (-> A B C))
+        (g (-> A B))
+        (x A))
+  (f x (g x))
+  C)
+----------------------------------------------------
+(check ((f (-> A B C))
+        (g (-> A B)))
+  (lambda (x) (f x (g x)))
+  (-> A C))
+---------------------------------------------------------
+(check ((f (-> A B C)))
+  (lambda (g x) (f x (g x)))
+  (-> (-> A B) (-> A C)))
+----------------------------------------------------------
+(check ()
+  (lambda (f g x) (f x (g x)))
+  (-> (-> A B C) (-> A B) A C))
+```
+
+解释器是一个叫做 `evaluate` 的函数，其类型为：
+
+```typescript
+evaluate(env: Env, exp: Exp): Value
+```
+
+类型检查器是一个叫做 `check` 的函数，其类型为：
+
+```typescript
+check(ctx: Ctx, exp: Exp, t: Type): boolean
+```
+
+其实就是把上面的 `check` 断言，实现为一个 **谓词**（predicate）。
+
+- 返回类型为 `boolean` 的函数叫做谓词。
+
+在实际的实现中，`check` 需要将类型检查过程中出现的错误反馈给用户，
+因此返回值其实不是简单的 `boolean`。
+
+我们用 throw expection 的方式来实现报错功能，
+因此改写 `check` 的类型如下：
+
+```typescript
+check(ctx: Ctx, exp: Exp, t: Type): void
+```
+
+- 类型检查成功时，不返回值；
+- 类型检查失败时，通过 `throw new TypeError(...)` 的方式来实现报错。
+
+每条推理规则，都对应于 `check` 需要处理的一种情况，
+也对应于一个种表达式。
+
+回顾 Lambda 演算的三种表达式：
+
+| 表达式名 | 推理规则名 |
+|----------|------------|
+| `Ap`     | `apply`    |
+| `Fn`     | `lambda`   |
+| `Var`    | `variable` |
+
+首先考虑 `apply` 这条推理规则：
+
+```
+ctx |- f: (-> A B)
+ctx |- x: A
+---------------- apply
+ctx |- (f x): B
+```
+
+写为前缀表达式：
+
+```
+(check ctx f (-> A B))
+(check ctx x A)
+------------------- apply
+(check ctx (f x) B)
 ```
 
 - 我们想要检查 `(f x)` 的类型为 `B`；
 - 我们必须能够推导出 `f` 的类型为 `(-> A B)`；
-- 如果我们能够导出出 `f` 的类型，那么我们就也能推导出 `(f x)` 的类型；
-- Thus we can do infer for the rule of function application.
+- 如果我们能够推导出 `f` 的类型，那么我们就也能推导出 `(f x)` 的类型。
 
-```js
-[check] env + (x : A) |- e : B
-------------
-[check] env |- { x => e } : { A -> B }
+由此，我们发现，对于 `apply` 这个推理规则，
+我们不光可以实现 `check`，还可以实现一个更强的函数 `infer`。
+
+```typescript
+infer(ctx: Ctx, exp: Exp): Type
 ```
+
+```typescript
+check(ctx: Ctx, exp: Exps.Ap, t: Type): void {
+  const inferred_t = infer(ctx, exp)
+  assert_equal_types(inferred_t, t)
+}
+
+infer(ctx: Ctx, exp: Exps.Ap): Type {
+  const target_t = infer(ctx, exp.target)
+  if (!(target_t instanceof Types.Arrow)) throw new TypeError()
+  const { arg_t, ret_t } = target_t
+  check(ctx, exp.arg, arg_t)
+  return ret_t
+}
+```
+
+再考虑 `lambda` 这条推理规则：
+
+```
+ctx, x: A |- b: B
+-------------------------------- lambda
+ctx |- (lambda (x) b): (-> A B)
+```
+
+写为前缀表达式：
+
+```
+(check (extend ctx x A) b B)
+------------------------------------ lambda
+(check ctx (lambda (x) b) (-> A B))
+```
+
+TODO
 
 we can not possibly infer the type of a bound variable `x`.
 Thus we do check for the rule of function abstraction.
@@ -406,3 +501,17 @@ we can implement infer for conclusion.
 
 is like dependent function type `check_t(premise) -> infer_t(conclusion)`,
 where `infer_t` is a subtype of `check_t`.
+
+## 结论
+
+上面的技巧叫做 **Bidirectional type checking**，
+可以让我们把逻辑中的推理规则，
+转化为类型系统中的类型检查算法（类型检查函数）。
+
+当用纯粹的前缀表达式来表示断言（judgment）时，
+我们给了断言一个名字叫 `check`。
+
+Bidirectional type checking 就在于，
+断言应该被分为两类，一类是 `check` 另一类是 `infer`。
+
+TODO 关于 关系 与 函数，以及函数的单值性。
