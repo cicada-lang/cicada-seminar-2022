@@ -331,6 +331,23 @@ evaluate(env: Env, exp: Exp): Value
 check(ctx: Ctx, exp: Exp, t: Type): boolean
 ```
 
+其中 `Exp` 是 Lambda 演算的表达式，
+而 `Type` 的定义如下：
+
+```typescript
+abstract class Type {}
+class Atom extends Type {
+  name: string;
+}
+class Arrow extends Type {
+  art_t: Type;
+  ret_t: Type;
+}
+```
+
+- `Atom` 为原子类型；
+- `Arrow` 为函数类型。
+
 其实就是把上面的 `check` 断言，实现为一个 **谓词**（predicate）。
 
 - 返回类型为 `boolean` 的函数叫做谓词。
@@ -354,7 +371,7 @@ check(ctx: Ctx, exp: Exp, t: Type): void
 回顾 Lambda 演算的三种表达式：
 
 | 表达式名 | 推理规则名 |
-|----------|------------|
+| -------- | ---------- |
 | `Ap`     | `apply`    |
 | `Fn`     | `lambda`   |
 | `Var`    | `variable` |
@@ -381,29 +398,71 @@ ctx |- (f x): B
 - 我们必须能够推导出 `f` 的类型为 `(-> A B)`；
 - 如果我们能够推导出 `f` 的类型，那么我们就也能推导出 `(f x)` 的类型。
 
-由此，我们发现，对于 `apply` 这个推理规则，
+由此，我们发现，对于 `apply` 这条推理规则，
 我们不光可以实现 `check`，还可以实现一个更强的函数 `infer`。
 
 ```typescript
 infer(ctx: Ctx, exp: Exp): Type
 ```
 
+说 `infer` 「更强」，就在于 `check` 可以用 `infer` 来实现，
+因为 `check` 可以分解为 `infer` + `check_equal_type`。
+
+- 功能上，如果一个语言的类型检查器可以推导出表达式的类型，
+  而不需要用户声明这些类型，那看起来也是「更强」。
+
 ```typescript
 check(ctx: Ctx, exp: Exps.Ap, t: Type): void {
   const inferred_t = infer(ctx, exp)
-  assert_equal_types(inferred_t, t)
+  check_equal_type(inferred_t, t)
 }
 
 infer(ctx: Ctx, exp: Exps.Ap): Type {
   const target_t = infer(ctx, exp.target)
-  if (!(target_t instanceof Types.Arrow)) throw new TypeError()
+  if (!(target_t instanceof Types.Arrow)) {
+    throw new TypeError()
+  }
+
   const { arg_t, ret_t } = target_t
   check(ctx, exp.arg, arg_t)
   return ret_t
 }
 ```
 
-再考虑 `lambda` 这条推理规则：
+再考虑 `variable` 这条推理规则：
+
+```
+------------------- variable
+ctx, x: A |- x: A
+```
+
+写为前缀表达式：
+
+```
+------------------------------ variable
+(check (extend ctx x A) x A)
+```
+
+```
+(check-equal-type (lookup ctx x) A)
+------------------------------------ variable
+(check ctx x A)
+```
+
+显然对于 `variable` 我们不光可以实现 `check`，也可以实现 `infer`：
+
+```typescript
+check(ctx: Ctx, exp: Exps.Var, t: Type): void {
+  const inferred_t = infer(ctx, exp)
+  check_equal_type(inferred_t, t)
+}
+
+infer(ctx: Ctx, exp: Exps.Var): Type {
+  return lookup(ctx, exp.name)
+}
+```
+
+最后考虑 `lambda` 这条推理规则：
 
 ```
 ctx, x: A |- b: B
@@ -419,88 +478,93 @@ ctx |- (lambda (x) b): (-> A B)
 (check ctx (lambda (x) b) (-> A B))
 ```
 
-TODO
+我差点儿以为我可以一路把 `infer` 实现下去，
+但是这里想法破灭了。
 
-we can not possibly infer the type of a bound variable `x`.
-Thus we do check for the rule of function abstraction.
+我们不可能从 `(lambda (x) b)` 推导出 `(-> A B)` 中的 `A`。
 
-Function abstraction is the constructor of function type.
-Function application is the eliminator of function type.
+- 假设我们只用表达式自身所携带的信息，
+  外加 `ctx` 中的信息（这些都算是局部信息），
+  来实现 `infer`。
 
-Since the rules about function are core of type systems,
-we might propagate the property "we need to check instead of infer"
-to all rules about constructor.
+- 假设我们不能给 `(lambda (x) a)` 做类型标注（type annotation）
+  而写成 `(lambda ((x A)) a)`。
 
-We only want to implementation check,
-but we sometimes need infer,
-because we need to infer the type of target of elimination rules,
-because the target might be a variable.
+  - 不带类型标注的 Lambda 演算，叫做「Curry 风格」；
+  - 带有类型标注的 Lambda 演算，叫做「Church 风格」。
 
-For elimination rules the pattern is,
+对于 `lambda` 这条推理规则，看来我们必须直接实现 `check` 了。
 
-```js
-[infer] premise about target
-[check] premise
-[check] premise
-[check] ...
+```typescript
+check(ctx: Ctx, exp: Exps.Fn, t: Type): void {
+  if (!(t instanceof Types.Arrow)) {
+    throw new TypeError()
+  }
+
+  const { arg_t, ret_t } = t
+  check(ctx.extend(exp.name, arg_t), exp.ret, ret_t)
+}
+```
+
+## 回顾
+
+### 总结与重新叙述
+
+总结一下我们的经历：
+
+- 我们只是想实现 `check`；
+- 但是我们发现，为了实现 `check`，我们有时需要 `infer`；
+- 具体需要 `infer` 的，是 elimination rule 的 target。
+
+
+elimination rule 的一般模式是：
+
+```
+(infer) premise about target
+(check) premise
+(check) premise
+...
 ----------
-[infer] conclusion
+(infer) conclusion
 ```
 
-For construction rules the pattern is,
+construction rule 的一般模式是：
 
-```js
-[check] premise
-[check] premise
-[check] ...
+```
+(check) premise
+(check) premise
+...
 ----------
-[check] conclusion
+(check) conclusion
 ```
 
-We can also just provide enough information in the syntax.
-for example, using typed bound variable,
-we can infer function abstraction.
+### 一路 infer 下去
 
-```js
-[infer] env + (x : A) |- e : B
-------------
-[infer] env |- { x : A => e } : { A -> B }
+We can also just provide enough information in the syntax,
+i.e. add annotation to the bound variable,
+then we can infer function abstraction.
+
+```
+(infer (extend ctx x A) b) => B
+------------------------------------------ lambda
+(infer ctx (lambda ((x A)) b)) => (-> A B)
 ```
 
-Note that, we do not need to annotate the return type of function.
+Note that, we do not need to annotate the return type of function,
+we only need to annotate the argument type.
 
-The rule of dependent function application
+### 未来会用到的推广
 
-```js
-[infer] env |- f : { x : A -> B } @ env1
-[check] env |- a : A
-[meta] eval(env1 + (x = a), B) == T
-------------
-[infer] env |- f(a) : T
-```
+回顾一下我们所实现的类型检查函数 `check` 与 `infer`。
 
-About the variance between premise and conclusion in inference rule
+- `Fn` 是函数类型的构造子（data constructor）；
+- `Ap` 是函数类型的分解子（data eliminator）。
 
-```js
-premise
-----------
-conclusion
-```
+由于函数类型的推理规则，是类型系统的核心，
+所以我们可以把这个属性 **推广** 到其他的类型中，即：
 
-is like function type `premise -> conclusion`.
-
-```js
-[check] premise
-----------
-[infer] conclusion
-```
-
-which can be read as,
-if we can implement check for premise,
-we can implement infer for conclusion.
-
-is like dependent function type `check_t(premise) -> infer_t(conclusion)`,
-where `infer_t` is a subtype of `check_t`.
+- 对于所有的 data constructor 都应该 `check`；
+- 对于所有的 data eliminator 都应该 `infer`。
 
 ## 结论
 
