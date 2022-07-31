@@ -516,7 +516,6 @@ check(ctx: Ctx, exp: Exps.Fn, t: Type): void {
 - 但是我们发现，为了实现 `check`，我们有时需要 `infer`；
 - 具体需要 `infer` 的，是 elimination rule 的 target。
 
-
 elimination rule 的一般模式是：
 
 ```
@@ -528,7 +527,7 @@ elimination rule 的一般模式是：
 (infer) conclusion
 ```
 
-construction rule 的一般模式是：
+construction rule（或称 introduction rule）的一般模式是：
 
 ```
 (check) premise
@@ -572,10 +571,29 @@ we only need to annotate the argument type.
 可以让我们把逻辑中的推理规则，
 转化为类型系统中的类型检查算法（类型检查函数）。
 
-当用纯粹的前缀表达式来表示断言（judgment）时，
-我们给了断言一个名字叫 `check`。
+逻辑中的推理规则，都是声明式的（declarative）关系（relation），
+或者说是谓词（predicate）。
 
-Bidirectional type checking 就在于，
-断言应该被分为两类，一类是 `check` 另一类是 `infer`。
+- 推理规则是可以在逻辑式编程语言中，用关系来实现的。
+  当用逻辑式语言来实现推理规则时，
+  我们不光能做类型检查和类型推导，
+  还能做证明搜索（proof search），
+  即给出类型（命题），
+  搜索满足类型的表达式（命题的证明）。
+
+"bidirectional" 一词中所说的「双向」就在于：
+
+- 在 `check` 时，类型是输入；
+- 在 `infer` 时，类型是输出。
+
+使用这个技术是为了把逻辑中声明式的 inference rule 改写为函数，
+这在于，在无方向的 inference rule 中，
+指出「输入」与「输出」，即指出方向，
+有了方向就成了函数。
+
+| 推理规则的种类    | 表达式的种类     | 应该实现的函数 | 典型例子 |
+| ----------------- | ---------------- | -------------- | -------- |
+| construction rule | data constructor | `check`        | `Fn`     |
+| elimination rule  | data eliminator  | `infer`        | `Ap`     |
 
 TODO 关于 关系 与 函数，以及函数的单值性。
