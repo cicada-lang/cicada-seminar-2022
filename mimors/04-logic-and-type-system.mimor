@@ -45,3 +45,17 @@
     -- 皮尔士
   </答>
 </问>
+
+<question>
+  What are expressions?
+
+  <answer>
+    Expressions are signs by which we modelling the world.
+
+    For examples,
+
+    (1) Lambda expression models computation by subsitution substitution.
+
+    (2) Logic expression models reasoning by deduction.
+  </answer>
+</question>
