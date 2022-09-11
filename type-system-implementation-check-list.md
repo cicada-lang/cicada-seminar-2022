@@ -23,3 +23,11 @@
 
    elaboration 就在于在贴近具体语法的表达式 `Exp` 之外，
    分离出来一个经过补充信息的（简化的） `Core` 语言。
+
+这是我目前知道的五个最最基本的知识点。
+
+除了「熟悉 lambda 演算」之外，
+其他的都可以称作是 application design pattern
+（这里的 application 是 language）。
+
+随着实现的深入，其他 language feature 可能会让我们发现更多的 patterns。
