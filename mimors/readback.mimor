@@ -1,0 +1,34 @@
+为什么 `readback` 需要 freshen？
+
+
+
+
+首先 `ctx` 记录了在递归处理 `Exp` 时，当前的 scope。
+
+随着我们深入表达式内部，scope 会逐渐扩展，
+因为有一些表达式，诸如 Pi、Sigma 和 Lambda，
+会引入 name 到 type （或 value）的 binding。
+
+`readback` 必须引入新的、没有在当前 scope 中出现过 name，
+这个 name 将用来制作新的带有 binding 的表达式，
+这个 binding 表达式的内部表达式，
+是递归的 `readback` 而得到的 partial evaluation 的结果，
+即，用这个 name 构造一个 variable，
+然后把 closure apply 到这个 variable 上得到 value，
+再递归 `readback`。
+
+因为已经在 scope 中出现过的 name，
+对 closure 内部的表达式来说是 free variable，
+我们构造新的 binding 的时候，
+不能将原本 free 的 variable 变成 bound variable，
+所以 `readback` 的过程中，要找一个「没有在当前 scope 中出现过 name」。
+
+
+
+
+
+实际上在 `infer` 和 `check` 中使用 `readback`，也并没有改变破坏 scope。
+
+因为在 `infer` 和 `check` 中所得到的 value，
+要么是在当前的 scope 中 `evaluate` 得到的，
+要么是在更外层的 scope 中 `evaluate` 得到的。
