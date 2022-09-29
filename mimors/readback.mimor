@@ -24,6 +24,10 @@
 所以 `readback` 的过程中，要找一个「没有在当前 scope 中出现过 name」。
 
 
+- 可是 readback 始终是就一个 binding 而言的，如果 name 已经在 scope 中出现过，
+  也会被当前的 scope 所屏蔽。
+
+  是否其实在 readback Pi、Sigma 和 Fn 的时候，其实并不需要 freshen 呢？
 
 
 
