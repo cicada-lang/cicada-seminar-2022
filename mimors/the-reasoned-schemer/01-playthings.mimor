@@ -11,6 +11,7 @@
 
   <answer>
     Every variable is initially fresh.
+
     A variable is no longer fresh
     if it becomes associated with a non-variable value
     or if it becomes associated with a variable that,
