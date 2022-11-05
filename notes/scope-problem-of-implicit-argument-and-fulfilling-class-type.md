@@ -30,7 +30,10 @@ class Isomorphism {
 - 以 `inverse_left` 中的 `cat.compose(morphism, inverse)` 为例。
 - elaboration 过程中会根据 `morphism` 的类型 insert `ApImplicit`，
   得到 `cat.compose(implicit x1, implicit x2, morphism, implicit x3, inverse)`。
-- 解出来，得到 `cat.compose(implicit dom, implicit dom, morphism, implicit dom, inverse)`。
+- 解出来，得到 `cat.compose(implicit dom, implicit dom, morphism, implicit dom, inverse)`，
+  虽然这么写，但是解不如带入到 core 里，
+  而是在所形成的 closure 的 env 中，
+  以 `x1 => dom` 的形式存在。
 - 此时 `dom` 在 scope 中，但是只有类型 `dom: cat.Object`，没有值，是 neutral variable。
 - 下面的 fulfilling class type `Isomorphism(cat, x.object, y.object)`
   会给出 `dom` 的值 `x.object`。
